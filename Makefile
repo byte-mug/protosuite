@@ -63,8 +63,8 @@ all: $(all_programs)
 	true
 
 clean:
-	rm $(lib) $(libpass) $(libyescrypt) tls_lib/*.o
-	rm $(all_programs)
+	rm $(lib) $(libpass) $(libyescrypt) tls_lib/*.o || true
+	rm $(all_programs) || true
 
 #-------------------programs------------------------
 
