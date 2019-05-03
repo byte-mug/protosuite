@@ -47,7 +47,7 @@ static int
 	policy_status = 0
 ;
 
-static sds line;
+static sds line,mailto;
 
 static int file_head_flags;
 
@@ -287,6 +287,8 @@ static void commands(void){
 	file_head = sdsempty();
 	file_head_flags = 0;
 	sds temp,temp2;
+	mailto = 0;
+	lspf_mailfrom = lspf_rcptto = 0;
 	
 	for(;;) {
 		if(!slam_readline(line)) die_eof();
@@ -348,6 +350,10 @@ static void commands(void){
 				}
 			}
 			
+			if(mailto) sdsfree(mailto);
+			mailto = sdsdup(line);
+			if(!mailto) die_nomem();
+			
 			file_head = sdscat(file_head,"FROM:"); if(!file_head) die_nomem();
 			file_head = sdscatsds(file_head,line); if(!file_head) die_nomem();
 			file_head = sdscat(file_head,"\r\n");  if(!file_head) die_nomem();
@@ -355,13 +361,18 @@ static void commands(void){
 			
 			ok_smtp();
 		}else if(sdseqlower_p(line,"rcpt to:")){ /* RCPT TO:<huhu@example.com> */
+			/*
+			 * We will not allow "RCPT TO" before "MAIL FROM".
+			 */
+			if(!(file_head_flags&1)){ err_wantmail(); continue; }
+			
 			if(!is_authenticated()){ err_need_auth(); continue; }
 			
 			sdssetlen(line,moveback_n(line,sdslen(line),8));
 			sdstrim(line," \r\n\t");
 			
 			if(policy_status&POLICY_STATUS_SPFu) {
-				lspf_rcptto = lspf_check_mailfrom(lspf_ctx,client_ip,helo_host,line);
+				lspf_rcptto = lspf_check_rcptto(lspf_ctx,client_ip,helo_host,mailto,line);
 				switch(lspf_rcptto) {
 				case LSPF_FAIL: err_spf_fail(); continue;
 				}
@@ -382,7 +393,7 @@ static void commands(void){
 			file_head = sdscat(file_head,"DATA\r\n");   if(!file_head) die_nomem();
 			
 			if(md_new_message()){
-				/* Reset bufer. */
+				/* Reset buffer. */
 				sdssetlen(file_head,0);
 				
 				data_451();
