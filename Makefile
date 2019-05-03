@@ -1,5 +1,7 @@
 CC := gcc
 
+#CF += -fPIC
+
 .PHONY: all
 
 lib/%.o: lib/%.c
@@ -65,6 +67,7 @@ all: $(all_programs)
 clean:
 	rm $(lib) $(libpass) $(libyescrypt) tls_lib/*.o || true
 	rm $(all_programs) || true
+	rm */*.o || true
 
 #-------------------programs------------------------
 
