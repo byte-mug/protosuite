@@ -7,6 +7,8 @@
  * DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
  */
 #include <stdlib.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -60,7 +62,7 @@ static size_t
 static int targ;
 
 
-static void cleanup(){
+static void cleanup(void){
 	slam_close();
 }
 
@@ -72,37 +74,37 @@ static inline int isNewLine(char c){
 	return 0;
 }
 
-static void die_bye()      { out("221 Bye" LN); slam_flush(); cleanup(); _exit(0); }
-static void die_internal() { out("500 5.3.0  Internal Server Error\r\n"); slam_flush(); cleanup(); _exit(1); }
-static void die_nomem()    { out("421 4.3.0  out of memory \r\n"); slam_flush(); cleanup(); _exit(1); }
-static void die_eof()      { out("421 4.3.0  unexpected EOF \r\n"); slam_flush(); cleanup(); _exit(1); }
+static void die_bye(void)      { out("221 Bye" LN); slam_flush(); cleanup(); _exit(0); }
+static void die_internal(void) { out("500 5.3.0  Internal Server Error\r\n"); slam_flush(); cleanup(); _exit(1); }
+static void die_nomem(void)    { out("421 4.3.0  out of memory \r\n"); slam_flush(); cleanup(); _exit(1); }
+static void die_eof(void)      { out("421 4.3.0  unexpected EOF \r\n"); slam_flush(); cleanup(); _exit(1); }
 
-static void err_unrecognized() { out("500 5.5.1  Command unrecognized" LN); slam_flush(); };
+static void err_unrecognized(void) { out("500 5.5.1  Command unrecognized" LN); slam_flush(); };
 
-static void err_badsequence()  { out("503 5.5.1  Bad sequence of commands\r\n"); slam_flush(); }
+static void err_badsequence(void)  { out("503 5.5.1  Bad sequence of commands\r\n"); slam_flush(); }
 
-static void err_wantmail()  { out("503 5.5.1  MAIL first \r\n"); slam_flush(); }
-static void err_wantrcpt()  { out("503 5.5.1  RCPT first \r\n"); slam_flush(); }
-static void err_need_auth() { out("530 5.7.0  Authentication required\r\n"); slam_flush(); }
-static void err_need_tls()  { out("538 5.7.11  Encryption required for requested authentication mechanism" LN); slam_flush(); }
-static void err_auth_invalid() { out("535 5.7.8  Authentication credentials invalid" LN); slam_flush(); }
+static void err_wantmail(void)  { out("503 5.5.1  MAIL first \r\n"); slam_flush(); }
+static void err_wantrcpt(void)  { out("503 5.5.1  RCPT first \r\n"); slam_flush(); }
+static void err_need_auth(void) { out("530 5.7.0  Authentication required\r\n"); slam_flush(); }
+static void err_need_tls(void)  { out("538 5.7.11  Encryption required for requested authentication mechanism" LN); slam_flush(); }
+static void err_auth_invalid(void) { out("535 5.7.8  Authentication credentials invalid" LN); slam_flush(); }
 
 /* 454 4.7.0  Temporary authentication failure */
-static void err_auth_error()  { out("454 4.7.0  Temporary authentication failure" LN); slam_flush(); }
-static void err_auth_base64() { out("454 4.7.0  Invalid Base-64 Data" LN); slam_flush(); }
+static void err_auth_error(void)  { out("454 4.7.0  Temporary authentication failure" LN); slam_flush(); }
+static void err_auth_base64(void) { out("454 4.7.0  Invalid Base-64 Data" LN); slam_flush(); }
 
-static void ok_smtp()  { out("250 Ok" LN); slam_flush(); }
-static void ok_auth()  { out("235 2.7.0  Authentication Succeeded" LN); slam_flush(); }
+static void ok_smtp(void)  { out("250 Ok" LN); slam_flush(); }
+static void ok_auth(void)  { out("235 2.7.0  Authentication Succeeded" LN); slam_flush(); }
 
-static void data_eof() { out("451 4.5.2  unexpected EOF" LN); slam_flush(); }
-static void data_451() { out("451 4.3.0  Requested action aborted: error in processing" LN); slam_flush(); }
-static void data_452() { out("452 4.3.1  Requested action not taken: insufficient system storage" LN); slam_flush(); } /* X.3.1 Mail system full */
-static void data_552() { out("552 5.3.4  Requested mail action aborted: exceeded storage allocation" LN); slam_flush(); } /* X.3.4 Message too big for system */
-static void data_554() { out("554 5.3.0  Transaction failed" LN); slam_flush(); } /* (unknown error) */
+static void data_eof(void) { out("451 4.5.2  unexpected EOF" LN); slam_flush(); }
+static void data_451(void) { out("451 4.3.0  Requested action aborted: error in processing" LN); slam_flush(); }
+static void data_452(void) { out("452 4.3.1  Requested action not taken: insufficient system storage" LN); slam_flush(); } /* X.3.1 Mail system full */
+static void data_552(void) { out("552 5.3.4  Requested mail action aborted: exceeded storage allocation" LN); slam_flush(); } /* X.3.4 Message too big for system */
+static void data_554(void) { out("554 5.3.0  Transaction failed" LN); slam_flush(); } /* (unknown error) */
 
-static void data_ok() { out("354 End data with <CR><LF>.<CR><LF>" LN); slam_flush(); }
+static void data_ok(void) { out("354 End data with <CR><LF>.<CR><LF>" LN); slam_flush(); }
 
-static int md_new_message(){
+static int md_new_message(void){
 	char data[40];
 	struct stat statbuf;
 	if(snprintf(data,sizeof data,"tmp/%d",(int)getpid())<0)return 1;
@@ -148,7 +150,7 @@ static int evalErr(int code,int *resp){
 	return -1;
 }
 
-static void md_copymessage(){
+static void md_copymessage(void){
 	const char* ptr;
 	size_t size;
 	int not_broken,err_type;
@@ -263,7 +265,7 @@ static int check_auth_plain(sds decoded){
 	return check_auth(auth_user,auth_passwd);
 }
 
-static void commands(){
+static void commands(void){
 	helo_host = NULL;
 	file_head = sdsempty();
 	file_head_flags = 0;
@@ -443,7 +445,7 @@ static void commands(){
 }
 
 #define caseof(a,b) case a: b; break
-static void parseflags(){
+static void parseflags(void){
 	const char* env = getenv("SMTP_FLAGS");
 	if(!env)return;
 	if(!*env)return;
@@ -454,7 +456,7 @@ static void parseflags(){
 	}}while(*++env);
 }
 
-int main(){
+int main(void){
 	parseflags();
 	passwords = getenv("PASSFILE");
 	const char* env = getenv("MAILDIR");
