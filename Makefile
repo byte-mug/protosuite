@@ -3,22 +3,22 @@ CC := gcc
 .PHONY: all
 
 lib/%.o: lib/%.c
-	$(CC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 tls_lib/%.o: tls_lib/%.c
-	$(CC) $(tlsflags) -c $< -o $@
+	$(CC) $(CFLAGS) $(tlsflags) -c $< -o $@
 
 libpass/%.o: libpass/%.c
-	$(CC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 libyescrypt/%.o: libyescrypt/%.c
-	$(CC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 smtp/%.o: smtp/%.c
-	$(CC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 %.o: %.c
-	$(CC) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 lib += lib/safe_strings.o lib/sds.o lib/slam.o lib/match.o lib/base64.o lib/servername.o
 
