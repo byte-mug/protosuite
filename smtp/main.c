@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 Simon Schmidt
+ * Copyright (C) 2017-2019 Simon Schmidt
  * Usage of the works is permitted provided that this instrument is retained
  * with the works, so that any entity that uses the works is notified of this
  * instrument.
@@ -22,10 +22,12 @@
 #include "../libyescrypt/yescrypt.h"
 #include "../lib/base64.h"
 #include "../tls_lib/tls_lib.h"
+#include "lspf.h"
 #define LN "\r\n"
 
 static const char* passwords;
 static const char* server_name;
+static const char* client_ip;
 
 #define POLICY_SECURITY_TLS  0x001
 #define POLICY_SECURITY_AUTH 0x002
@@ -35,8 +37,10 @@ static const char* server_name;
 #define POLICY_STATUS_EHLO   0x002
 #define POLICY_STATUS_TLS    0x004
 #define POLICY_STATUS_Tsup   0x008
+#define POLICY_STATUS_SPFu   0x010
 
-#define M_POLICY_STATUS_KEEP POLICY_STATUS_Tsup|POLICY_STATUS_HELO|POLICY_STATUS_EHLO
+/* I think, we don't need this: */
+//#define M_POLICY_STATUS_KEEP POLICY_STATUS_Tsup|POLICY_STATUS_HELO|POLICY_STATUS_EHLO
 
 static int
 	policy_sec_level = 0,
@@ -61,9 +65,12 @@ static size_t
 
 static int targ;
 
+static LSPF_CTX lspf_ctx;
+static int lspf_mailfrom,lspf_rcptto;
 
 static void cleanup(void){
 	slam_close();
+	lspf_release(lspf_ctx);
 }
 
 static inline int isNewLine(char c){
@@ -96,6 +103,11 @@ static void err_auth_base64(void) { out("454 4.7.0  Invalid Base-64 Data" LN); s
 static void ok_smtp(void)  { out("250 Ok" LN); slam_flush(); }
 static void ok_auth(void)  { out("235 2.7.0  Authentication Succeeded" LN); slam_flush(); }
 
+/* 550 5.7.1 Error messages */
+static void err_badbounce(void) { out("550 5.7.1  sorry, I don't accept bounce messages with more than one recipient. Go read RFC2821." LN); slam_flush(); }
+static void err_spf_fail(void) { out("550 5.7.1  Bad SPF policy Fail(-)." LN); slam_flush(); }
+
+/* Data error messages */
 static void data_eof(void) { out("451 4.5.2  unexpected EOF" LN); slam_flush(); }
 static void data_451(void) { out("451 4.3.0  Requested action aborted: error in processing" LN); slam_flush(); }
 static void data_452(void) { out("452 4.3.1  Requested action not taken: insufficient system storage" LN); slam_flush(); } /* X.3.1 Mail system full */
@@ -265,6 +277,11 @@ static int check_auth_plain(sds decoded){
 	return check_auth(auth_user,auth_passwd);
 }
 
+static inline int is_authenticated(void) {
+	return (policy_sec_level&POLICY_SECURITY_AUTH) || (policy_status&POLICY_STATUS_SPFu);
+}
+
+
 static void commands(void){
 	helo_host = NULL;
 	file_head = sdsempty();
@@ -319,10 +336,17 @@ static void commands(void){
 			
 		/* ---------------- HANDLING MAIL COMMANDS ----------------- */
 		}else if(sdseqlower_p(line,"mail from:")){ /* MAIL FROM:<huhu@example.com> */
-			if(!(policy_sec_level&POLICY_SECURITY_AUTH)){ err_need_auth(); continue; }
+			if(!is_authenticated()){ err_need_auth(); continue; }
 			
 			sdssetlen(line,moveback_n(line,sdslen(line),10));
 			sdstrim(line," \r\n\t");
+			
+			if(policy_status&POLICY_STATUS_SPFu) {
+				lspf_mailfrom = lspf_check_mailfrom(lspf_ctx,client_ip,helo_host,line);
+				switch(lspf_mailfrom) {
+				case LSPF_FAIL: err_spf_fail(); continue;
+				}
+			}
 			
 			file_head = sdscat(file_head,"FROM:"); if(!file_head) die_nomem();
 			file_head = sdscatsds(file_head,line); if(!file_head) die_nomem();
@@ -331,10 +355,17 @@ static void commands(void){
 			
 			ok_smtp();
 		}else if(sdseqlower_p(line,"rcpt to:")){ /* RCPT TO:<huhu@example.com> */
-			if(!(policy_sec_level&POLICY_SECURITY_AUTH)){ err_need_auth(); continue; }
+			if(!is_authenticated()){ err_need_auth(); continue; }
 			
 			sdssetlen(line,moveback_n(line,sdslen(line),8));
 			sdstrim(line," \r\n\t");
+			
+			if(policy_status&POLICY_STATUS_SPFu) {
+				lspf_rcptto = lspf_check_mailfrom(lspf_ctx,client_ip,helo_host,line);
+				switch(lspf_rcptto) {
+				case LSPF_FAIL: err_spf_fail(); continue;
+				}
+			}
 			
 			file_head = sdscat(file_head,"TO:");   if(!file_head) die_nomem();
 			file_head = sdscatsds(file_head,line); if(!file_head) die_nomem();
@@ -445,7 +476,7 @@ static void commands(void){
 }
 
 #define caseof(a,b) case a: b; break
-static void parseflags(void){
+static void parseflags(void) {
 	const char* env = getenv("SMTP_FLAGS");
 	if(!env)return;
 	if(!*env)return;
@@ -453,14 +484,33 @@ static void parseflags(void){
 		caseof('T',policy_sec_level |= POLICY_SECURITY_TLS  );
 		caseof('C',policy_sec_level |= POLICY_SECURITY_CERT );
 		caseof('A',policy_sec_level |= POLICY_SECURITY_AUTH );
+		caseof('S',policy_status    |= POLICY_STATUS_SPFu   );
 	}}while(*++env);
 }
 
-int main(void){
+static const char* get_clientip(void) {
+	const char* ip;
+	/* tcploop sets $REMOTE_IP */
+	ip = getenv("REMOTE_IP");
+	if(ip) return ip;
+	/*
+	 * ucspi-tcp sets $TCPREMOTEIP
+	 *    https://cr.yp.to/ucspi-tcp/environment.html
+	 */
+	ip = getenv("TCPREMOTEIP");
+	if(ip) return ip;
+	return 0;
+}
+
+int main(void) {
 	parseflags();
 	passwords = getenv("PASSFILE");
 	const char* env = getenv("MAILDIR");
 	server_name = get_servername();
+	client_ip = get_clientip();
+	
+	lspf_ctx = lspf_init();
+	if(lspf_init_failed(lspf_ctx)) abort();
 	if(env){
 		queuefn = sdsnew(env);
 		if(!queuefn)abort();

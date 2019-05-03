@@ -69,10 +69,16 @@ clean:
 #-------------------programs------------------------
 
 smtpd += smtp/main.o
+ifeq ($(SPF),)
+smtpd += smtp/no_spf.o
+else
+smtpd += smtp/std_spf.o
+libspf = $(SPF)
+endif
 smtpd += $(lib) $(libpass) $(libyescrypt) $(tlsimpl)
 
 server_smtp: $(smtpd)
-	$(CC) $(smtpd) $(tlslibs) -o server_smtp
+	$(CC) $(smtpd) $(libspf) $(tlslibs) -o server_smtp
 
 pass += pass/main.o
 pass += $(lib) $(libpass) $(libyescrypt)
