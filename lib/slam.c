@@ -17,11 +17,11 @@ size_t (*slam_read)(void*,size_t);
 size_t (*slam_write)(const void*,size_t);
 void (*slam_close)();
 
-char buffer[1<<14];
-size_t pos;
+static char buffer[1<<14];
+static size_t pos;
 
-char outbuf[1<<14];
-size_t outpos;
+static char outbuf[1<<14];
+static size_t outpos;
 
 static size_t stdio_read (void* v,size_t s){
 	ssize_t r = read(0,v,s);
@@ -87,6 +87,7 @@ int slam_readline(sds s){
 	pos = moveback_n(buffer,pos,f);
 	return 1;
 }
+
 int slam_readline_ptr(const char** ptr,size_t* size){
 	int i;
 	size_t f = strfind_n(buffer,pos,'\n');
