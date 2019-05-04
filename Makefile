@@ -13,6 +13,9 @@ tls_lib/%.o: tls_lib/%.c
 libpass/%.o: libpass/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+libmta/%.o: libmta/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 libyescrypt/%.o: libyescrypt/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -25,6 +28,8 @@ smtp/%.o: smtp/%.c
 lib += lib/safe_strings.o lib/sds.o lib/slam.o lib/match.o lib/base64.o lib/servername.o
 
 libpass += libpass/passfile.o
+
+libmta += libmta/mta.o
 
 ifeq ($(TLS),tlse)
 has_tls += yes
