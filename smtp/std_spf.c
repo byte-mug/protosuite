@@ -40,35 +40,56 @@ static inline int is6(const char* ip) {
 		if(*ip==':') return 1;
 	return 0;
 }
-static inline int evaluate_err(SPF_errcode_t errc,int* res) {
+
+#define caser(x,y) case x: return y
+#define caseof(x,y) case x: y; break
+#define otherwise(y) default: y; break
+
+/*
+ * spf2l(error-code,spf-response) -> LSPF_*
+ *
+ * Convert a Response into a local return code.
+ */
+static inline int
+spf2l(SPF_errcode_t errc,SPF_response_t *spf_response) {
+	/*
+	 * malloc failed.
+	 */
+	if(!spf_response) return LSPF_TEMP_ERR;
+	
 	switch(errc) {
-	case SPF_E_SUCCESS: return 1;
-	case SPF_E_NO_MEMORY:
-	case SPF_E_INTERNAL_ERROR: /* TODO: LSPF_TEMP_ERR or LSPF_UNKNOWN? */
-		*res = LSPF_TEMP_ERR; break;
-#if 0
 	case SPF_E_NOT_SPF:
 	case SPF_E_SYNTAX:
-		/*
-		 * If an SPF client encounters a syntax error in an SPF record,
-		 * it must terminate processing and return a result of "unknown".
-		 */
 	case SPF_E_RESULT_UNKNOWN:
-#endif
-	default: *res = LSPF_UNKNOWN;
+	/* START SMALL PIECES */
+	/* ..... */
+	/* END SMALL PIECES */
+		return LSPF_UNKNOWN;
 	}
-	return 0;
+	switch(SPF_response_reason(spf_response)) {
+	caser(SPF_REASON_FAILURE, LSPF_UNKNOWN);
+	}
+	switch(SPF_response_result(spf_response)) {
+	caser(SPF_RESULT_NONE     , LSPF_NONE    );
+	caser(SPF_RESULT_NEUTRAL  , LSPF_NEUTRAL );
+	caser(SPF_RESULT_PASS     , LSPF_PASS    );
+	caser(SPF_RESULT_FAIL     , LSPF_FAIL    );
+	caser(SPF_RESULT_SOFTFAIL , LSPF_SOFTFAIL);
+	caser(SPF_RESULT_TEMPERROR, LSPF_TEMP_ERR);
+	caser(SPF_RESULT_PERMERROR, LSPF_PERM_ERR);
+	}
+	return LSPF_UNKNOWN;
 }
 
-#define caseof(x,y) case x: y; break;
-#define otherwise(y) default: y; break;
-int lspf_check_mailfrom(LSPF_CTX ctx,const char* ip,const char* helodom,const char* from){
-	SPF_request_t   *spf_request = 0;
-	SPF_response_t  *spf_response = 0;
-	int res = LSPF_UNKNOWN;
-	spf_request = SPF_request_new(ctx->spf_server);
+/*
+ * spfin(spf-request,ip,helodom,from) -> LSPF_UNKNOWN or LSPF_TEMP_ERR or LSPF_PERM_ERR
+ *
+ * Fill a SPF request with data.
+ */
+static inline int
+spfin(SPF_request_t *spf_request,const char* ip,const char* helodom,const char* from) {
 	if(spf_request) return LSPF_TEMP_ERR;
-        if(ip){
+	if(ip){
 		if(is6(ip))
 			SPF_request_set_ipv6_str(spf_request, ip);
 		else
@@ -76,57 +97,40 @@ int lspf_check_mailfrom(LSPF_CTX ctx,const char* ip,const char* helodom,const ch
 	}
 	if(from)    SPF_request_set_env_from(spf_request, from);
 	if(helodom) SPF_request_set_helo_dom(spf_request, helodom);
-	if(!evaluate_err(SPF_request_query_mailfrom(spf_request, &spf_response),&res)) goto failed;
-	if(!evaluate_err(SPF_response_errcode(spf_response),&res)) goto failed;
+	return LSPF_UNKNOWN;
+}
+
+int lspf_check_mailfrom(LSPF_CTX ctx,const char* ip,const char* helodom,const char* from) {
+	SPF_request_t   *spf_request = 0;
+	SPF_response_t  *spf_response = 0;
+	SPF_errcode_t    errc;
+	int res;
+	spf_request = SPF_request_new(ctx->spf_server);
 	
-	switch(SPF_response_result(spf_response)) {
-	caseof(SPF_RESULT_NONE     , res = LSPF_NONE    );
-	caseof(SPF_RESULT_NEUTRAL  , res = LSPF_NEUTRAL );
-	caseof(SPF_RESULT_PASS     , res = LSPF_PASS    );
-	caseof(SPF_RESULT_FAIL     , res = LSPF_FAIL    );
-	caseof(SPF_RESULT_SOFTFAIL , res = LSPF_SOFTFAIL);
-	caseof(SPF_RESULT_TEMPERROR, res = LSPF_TEMP_ERR);
-	caseof(SPF_RESULT_PERMERROR, res = LSPF_PERM_ERR);
-	otherwise(                   res = LSPF_UNKNOWN );
-	}
+	res = spfin(spf_request,ip,helodom,from);
+	if(res!=LSPF_UNKNOWN) return res;
 	
+	errc = SPF_request_query_mailfrom(spf_request, &spf_response);
+	res = spf2l(errc,spf_response);
 	
-failed:
 	if(spf_response) SPF_response_free(spf_response);
 	if(spf_request) SPF_request_free(spf_request);
 	return res;
 }
 
-int lspf_check_rcptto(LSPF_CTX ctx,const char* ip,const char* helodom,const char* from,const char* to){
+int lspf_check_rcptto(LSPF_CTX ctx,const char* ip,const char* helodom,const char* from,const char* to) {
 	SPF_request_t   *spf_request = 0;
 	SPF_response_t  *spf_response = 0;
-	int res = LSPF_UNKNOWN;
+	SPF_errcode_t    errc;
+	int res;
 	spf_request = SPF_request_new(ctx->spf_server);
-	if(spf_request) return LSPF_TEMP_ERR;
-        if(ip){
-		if(is6(ip))
-			SPF_request_set_ipv6_str(spf_request, ip);
-		else
-			SPF_request_set_ipv4_str(spf_request, ip);
-	}
-	if(from)    SPF_request_set_env_from(spf_request, from);
-	if(helodom) SPF_request_set_helo_dom(spf_request, helodom);
-	if(!evaluate_err(SPF_request_query_rcptto(spf_request, &spf_response,to),&res)) goto failed;
-	if(!evaluate_err(SPF_response_errcode(spf_response),&res)) goto failed;
 	
-	switch(SPF_response_result(spf_response)) {
-	caseof(SPF_RESULT_NONE     , res = LSPF_NONE    );
-	caseof(SPF_RESULT_NEUTRAL  , res = LSPF_NEUTRAL );
-	caseof(SPF_RESULT_PASS     , res = LSPF_PASS    );
-	caseof(SPF_RESULT_FAIL     , res = LSPF_FAIL    );
-	caseof(SPF_RESULT_SOFTFAIL , res = LSPF_SOFTFAIL);
-	caseof(SPF_RESULT_TEMPERROR, res = LSPF_TEMP_ERR);
-	caseof(SPF_RESULT_PERMERROR, res = LSPF_PERM_ERR);
-	otherwise(                   res = LSPF_UNKNOWN );
-	}
+	res = spfin(spf_request,ip,helodom,from);
+	if(res!=LSPF_UNKNOWN) return res;
 	
+	errc = SPF_request_query_rcptto(spf_request, &spf_response,to);
+	res = spf2l(errc,spf_response);
 	
-failed:
 	if(spf_response) SPF_response_free(spf_response);
 	if(spf_request) SPF_request_free(spf_request);
 	return res;
