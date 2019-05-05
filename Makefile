@@ -29,7 +29,10 @@ lib += lib/safe_strings.o lib/sds.o lib/slam.o lib/match.o lib/base64.o lib/serv
 
 libpass += libpass/passfile.o
 
-libmta += libmta/mta.o
+######################################################
+#################### libMTA Module ###################
+
+#libmta += libmta/mta.o
 
 ifeq ($(SPF),)
 libmta += libmta/no_spf.o
@@ -37,6 +40,8 @@ else
 libmta += libmta/std_spf.o
 libspf := $(SPF)
 endif
+
+#####################################################
 
 ifeq ($(TLS),tlse)
 has_tls += yes
