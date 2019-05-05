@@ -22,7 +22,7 @@
 #include "../libyescrypt/yescrypt.h"
 #include "../lib/base64.h"
 #include "../tls_lib/tls_lib.h"
-#include "lspf.h"
+#include "../libmta/lspf.h"
 #define LN "\r\n"
 
 static const char* passwords;

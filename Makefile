@@ -31,6 +31,13 @@ libpass += libpass/passfile.o
 
 libmta += libmta/mta.o
 
+ifeq ($(SPF),)
+libmta += libmta/no_spf.o
+else
+libmta += libmta/std_spf.o
+libspf := $(SPF)
+endif
+
 ifeq ($(TLS),tlse)
 has_tls += yes
 tlsimpl += tls_lib/tls_tlse.o
@@ -77,13 +84,7 @@ clean:
 #-------------------programs------------------------
 
 smtpd += smtp/main.o
-ifeq ($(SPF),)
-smtpd += smtp/no_spf.o
-else
-smtpd += smtp/std_spf.o
-libspf = $(SPF)
-endif
-smtpd += $(lib) $(libpass) $(libyescrypt) $(tlsimpl)
+smtpd += $(lib) $(libmta) $(libpass) $(libyescrypt) $(tlsimpl)
 
 server_smtp: $(smtpd)
 	$(CC) $(smtpd) $(libspf) $(tlslibs) -o server_smtp
