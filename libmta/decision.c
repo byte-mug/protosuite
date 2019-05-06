@@ -7,6 +7,7 @@
  * DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
  */
 //
+#include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include "../lib/sds_audited.h"
@@ -42,6 +43,11 @@ DECISION_CFG deccfg_new(){
 	cfg->perm_anon.remote2local = 1;
 	
 	return cfg;
+}
+
+static inline int str0eq(const char* str0,const char* check) {
+	if(str0) return !strcmp(str0,check);
+	return 0;
 }
 
 static inline int perm(const char* value){
@@ -201,7 +207,7 @@ int  decctx_mailfrom(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char
 	 */
 	if(!ctx->login_user) {
 		
-		if(!strcmp(cfg->mta2me.spf,"on")){
+		if(str0eq(cfg->mta2me.spf,"on")){
 			result = lspf_check_mailfrom(ctx->spf_ctx,ip,helodom,from);
 			ctx->spf_mailfrom = result;
 			switch(result) {

@@ -6,6 +6,7 @@
  *
  * DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
  */
+#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -381,10 +382,6 @@ static void commands(void){
 			case 450: err_450_rejected(); continue;
 			case 530: err_need_auth(); continue;
 			}
-			
-			if(mailto) sdsfree(mailto);
-			mailto = sdsdup(line);
-			if(!mailto) die_nomem();
 			
 			file_head = sdscat(file_head,"FROM:"); if(!file_head) die_nomem();
 			file_head = sdscatsds(file_head,line); if(!file_head) die_nomem();
