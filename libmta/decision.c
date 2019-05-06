@@ -25,7 +25,7 @@ struct decision_ctx {
 	int      spf_mailfrom;
 };
 
-DECISION_CFG deccfg_new(){
+DECISION_CFG deccfg_new(void){
 	int i;
 	DECISION_CFG cfg;
 	cfg = malloc(sizeof(*cfg));
@@ -125,7 +125,7 @@ void deccfg_free(DECISION_CFG cfg) {
 }
 #undef FREESDS
 
-DECISION_CTX decctx_new(){
+DECISION_CTX decctx_new(void){
 	DECISION_CTX ctx;
 	ctx = malloc(sizeof(*ctx));
 	if(!ctx) return ctx;

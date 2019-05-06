@@ -34,11 +34,11 @@ struct decision_config {
 	struct decision_perm perm_login,perm_anon;
 };
 
-DECISION_CFG deccfg_new();
+DECISION_CFG deccfg_new(void);
 int  deccfg_parse(DECISION_CFG cfg,const char* file);
 void deccfg_free(DECISION_CFG cfg);
 
-DECISION_CTX decctx_new();
+DECISION_CTX decctx_new(void);
 void decctx_free(DECISION_CTX ctx);
 
 /*
