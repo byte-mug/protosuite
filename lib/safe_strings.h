@@ -28,5 +28,5 @@ size_t memcpy_l( void *dest, const void *src, size_t dcount, size_t scount );
 
 size_t moveback_n(void *buffer,size_t buflen,size_t offset);
 size_t strfind_n(const char* str, size_t len,char c);
-
+size_t strfindrev_n(const char* str, size_t len,char c);
 

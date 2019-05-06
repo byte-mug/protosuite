@@ -7,6 +7,7 @@
  * DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
  */
 #pragma once
+#include "common.h"
 
 typedef struct mta_acl_s* MTA_ACL;
 typedef struct mta_ace_s* MTA_ACEs;
@@ -14,7 +15,7 @@ typedef struct mta_ace_s  MTA_ACE;
 typedef struct mta_eval_state MTA_STATE;
 
 /* sds without including "sds.h" */
-typedef char* mta_sds;
+//typedef char* mta_sds;
 
 enum {
 	MTA_NONE,

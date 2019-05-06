@@ -114,4 +114,14 @@ size_t strfind_n(const char* str, size_t len,char c){
 	}
 	return 0;
 }
+size_t strfindrev_n(const char* str, size_t len,char c){
+	size_t i;
+	if(!len) return 0;
+	i = len;
+	do {
+		i--;
+		if( str[i] == c ) return i+1;
+	} while(i);
+	return 0;
+}
 

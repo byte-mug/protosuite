@@ -33,12 +33,19 @@ libpass += libpass/passfile.o
 #################### libMTA Module ###################
 
 #libmta += libmta/mta.o
-
+libmta += libmta/ini.o
+libmta += libmta/decision.o
 ifeq ($(SPF),)
 libmta += libmta/no_spf.o
 else
 libmta += libmta/std_spf.o
 libspf := $(SPF)
+endif
+
+ifeq ($(PCRE),)
+libmta += libmta/strmail_nopcre.o
+else
+libmta += libmta/strmail_nopcre.o
 endif
 
 #####################################################
