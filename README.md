@@ -56,4 +56,4 @@ suffix = @my-domain.net
 spf=on
 ```
 
-Also see: (mta_decision.ini)[./example/mta_decision.ini]
+Also see: [mta_decision.ini](./example/mta_decision.ini)
