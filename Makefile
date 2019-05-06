@@ -32,7 +32,6 @@ libpass += libpass/passfile.o
 ######################################################
 #################### libMTA Module ###################
 
-#libmta += libmta/mta.o
 libmta += libmta/ini.o
 libmta += libmta/decision.o
 ifeq ($(SPF),)
