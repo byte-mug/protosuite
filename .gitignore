@@ -31,3 +31,7 @@
 # Debug files
 *.dSYM/
 *.su
+
+# Executables
+server_smtp
+tool_pass
