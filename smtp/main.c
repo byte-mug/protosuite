@@ -6,7 +6,6 @@
  *
  * DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
  */
-#include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
