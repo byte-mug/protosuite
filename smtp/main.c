@@ -67,10 +67,19 @@ static int targ;
 static DECISION_CTX decision_ctx;
 static DECISION_CFG decision_cfg;
 
-static void cleanup(void){
-	slam_close();
+static void subcleanup(void){
 	decctx_free(decision_ctx);
 	deccfg_free(decision_cfg);
+}
+
+static void starttls_failed(void) {
+	subcleanup();
+	_exit(1);
+}
+
+static void cleanup(void){
+	slam_close();
+	subcleanup();
 }
 
 static inline int isNewLine(char c){
@@ -449,7 +458,7 @@ static void commands(void){
 			out("220 Go ahead" LN);
 			slam_flush();
 			
-			if(!slamtls_starttls()) { _exit(1); return; }
+			if(!slamtls_starttls()) { starttls_failed(); return; }
 			
 			policy_status |= POLICY_STATUS_TLS;      /* Set TLS flag in status. */
 			policy_sec_level |= POLICY_SECURITY_TLS; /* Set TLS flag in security level. */
