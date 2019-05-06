@@ -135,7 +135,7 @@ failed:
 }
 
 void decctx_free(DECISION_CTX ctx) {
-	
+	if(ctx->spf_ctx) lspf_release(ctx->spf_ctx);
 	/* TODO: ... */
 }
 

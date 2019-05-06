@@ -58,6 +58,7 @@ void decctx_on_login(DECISION_CTX ctx,DECISION_CFG cfg);
  *	0 on success.
  *	550 for errorcode 550.
  *	450 for errorcode 450.
+ *      530 for "530 5.7.0  Authentication required"
  */
 int  decctx_mailfrom(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char* helodom, mta_sds from);
 int  decctx_rcptto(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char* helodom, mta_sds from, mta_sds to);

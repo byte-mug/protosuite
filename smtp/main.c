@@ -22,7 +22,8 @@
 #include "../libyescrypt/yescrypt.h"
 #include "../lib/base64.h"
 #include "../tls_lib/tls_lib.h"
-#include "../libmta/lspf.h"
+#include "../libmta/decision.h"
+#include "../libmta/strmail.h"
 #define LN "\r\n"
 
 static const char* passwords;
@@ -37,7 +38,6 @@ static const char* client_ip;
 #define POLICY_STATUS_EHLO   0x002
 #define POLICY_STATUS_TLS    0x004
 #define POLICY_STATUS_Tsup   0x008
-#define POLICY_STATUS_SPFu   0x010
 
 /* I think, we don't need this: */
 //#define M_POLICY_STATUS_KEEP POLICY_STATUS_Tsup|POLICY_STATUS_HELO|POLICY_STATUS_EHLO
@@ -47,7 +47,10 @@ static int
 	policy_status = 0
 ;
 
-static sds line,mailto;
+static sds line;
+
+static sds raw_mailfrom, raw_rctpto;
+#define mailto raw_mailfrom
 
 static int file_head_flags;
 
@@ -65,12 +68,13 @@ static size_t
 
 static int targ;
 
-static LSPF_CTX lspf_ctx;
-static int lspf_mailfrom,lspf_rcptto;
+static DECISION_CTX decision_ctx;
+static DECISION_CFG decision_cfg;
 
 static void cleanup(void){
 	slam_close();
-	lspf_release(lspf_ctx);
+	decctx_free(decision_ctx);
+	deccfg_free(decision_cfg);
 }
 
 static inline int isNewLine(char c){
@@ -103,9 +107,15 @@ static void err_auth_base64(void) { out("454 4.7.0  Invalid Base-64 Data" LN); s
 static void ok_smtp(void)  { out("250 Ok" LN); slam_flush(); }
 static void ok_auth(void)  { out("235 2.7.0  Authentication Succeeded" LN); slam_flush(); }
 
-/* 550 5.7.1 Error messages */
+/* 550 5.7.1 Error messages and 450 4.7.1 Error messages */
 static void err_badbounce(void) { out("550 5.7.1  sorry, I don't accept bounce messages with more than one recipient. Go read RFC2821." LN); slam_flush(); }
 static void err_spf_fail(void) { out("550 5.7.1  Bad SPF policy Fail(-)." LN); slam_flush(); }
+static void err_550_rejected(void) { out("550 5.7.1  Mail Rejected." LN); slam_flush(); }
+static void err_450_rejected(void) { out("450 4.7.1  Mail Temporarily Rejected." LN); slam_flush(); }
+
+
+/* 550 Error messages */
+static void err_mail_syntax(void) { out("550 5.1.3  Invalid E-Mail address: Syntax error." LN); slam_flush(); }
 
 /* Data error messages */
 static void data_eof(void) { out("451 4.5.2  unexpected EOF" LN); slam_flush(); }
@@ -278,17 +288,25 @@ static int check_auth_plain(sds decoded){
 }
 
 static inline int is_authenticated(void) {
-	return (policy_sec_level&POLICY_SECURITY_AUTH) || (policy_status&POLICY_STATUS_SPFu);
+	return (policy_sec_level&POLICY_SECURITY_AUTH);
 }
 
+#if 0
+static inline sds sdsreplace(sds old,sds neew) {
+	if(old) sdsfree(old);
+	return sdsneew;
+}
+#endif
+static inline void sdsmayfree(sds old) {
+	if(old) sdsfree(old);
+}
 
 static void commands(void){
 	helo_host = NULL;
 	file_head = sdsempty();
 	file_head_flags = 0;
 	sds temp,temp2;
-	mailto = 0;
-	lspf_mailfrom = lspf_rcptto = 0;
+	raw_mailfrom = raw_rctpto = 0;
 	
 	for(;;) {
 		if(!slam_readline(line)) die_eof();
@@ -343,11 +361,25 @@ static void commands(void){
 			sdssetlen(line,moveback_n(line,sdslen(line),10));
 			sdstrim(line," \r\n\t");
 			
-			if(policy_status&POLICY_STATUS_SPFu) {
-				lspf_mailfrom = lspf_check_mailfrom(lspf_ctx,client_ip,helo_host,line);
-				switch(lspf_mailfrom) {
-				case LSPF_FAIL: err_spf_fail(); continue;
-				}
+			/*
+			 * Verify E-Mail-Address.
+			 */
+			if(!mta_verify_mail(line)) { err_mail_syntax(); continue; }
+			
+			/*
+			 * Copy and Unwrap E-Mail-Address.
+			 */
+			sdsmayfree(raw_mailfrom);
+			raw_mailfrom = sdsdup(line); if(!raw_mailfrom) die_nomem();
+			mta_unwrap_mail(raw_mailfrom);
+			
+			/*
+			 * Invoke Policy-Decision-Framework.
+			 */
+			switch(decctx_mailfrom(decision_ctx,decision_cfg,client_ip,helo_host,raw_mailfrom)) {
+			case 550: err_550_rejected(); continue;
+			case 450: err_450_rejected(); continue;
+			case 530: err_need_auth(); continue;
 			}
 			
 			if(mailto) sdsfree(mailto);
@@ -371,11 +403,25 @@ static void commands(void){
 			sdssetlen(line,moveback_n(line,sdslen(line),8));
 			sdstrim(line," \r\n\t");
 			
-			if(policy_status&POLICY_STATUS_SPFu) {
-				lspf_rcptto = lspf_check_rcptto(lspf_ctx,client_ip,helo_host,mailto,line);
-				switch(lspf_rcptto) {
-				case LSPF_FAIL: err_spf_fail(); continue;
-				}
+			/*
+			 * Verify E-Mail-Address.
+			 */
+			if(!mta_verify_mail(line)) { err_mail_syntax(); continue; }
+			
+			/*
+			 * Copy and Unwrap E-Mail-Address.
+			 */
+			sdsmayfree(raw_rctpto);
+			raw_rctpto = sdsdup(line); if(!raw_rctpto) die_nomem();
+			mta_unwrap_mail(raw_rctpto);
+			
+			/*
+			 * Invoke Policy-Decision-Framework.
+			 */
+			switch(decctx_rcptto(decision_ctx,decision_cfg,client_ip,helo_host,raw_mailfrom,raw_rctpto)) {
+			case 550: err_550_rejected(); continue;
+			case 450: err_450_rejected(); continue;
+			case 530: err_need_auth(); continue;
 			}
 			
 			file_head = sdscat(file_head,"TO:");   if(!file_head) die_nomem();
@@ -400,7 +446,7 @@ static void commands(void){
 				continue;
 			}
 			md_copymessage();
-			/* Reset bufer. */
+			/* Reset buffer. */
 			sdssetlen(file_head,0);
 			file_head_flags = 0;
 		
@@ -454,6 +500,9 @@ static void commands(void){
 			sdsfree(temp);
 			
 			policy_sec_level |= POLICY_SECURITY_AUTH;
+			
+			/* Invoke Policy-Decision-Framework */
+			decctx_on_login(decision_ctx,decision_cfg);
 			ok_auth();
 		}else if(sdseqlower_p(line,"auth login")){
 			if(!(policy_sec_level&POLICY_SECURITY_TLS)){ err_need_tls(); continue; }
@@ -478,6 +527,9 @@ static void commands(void){
 			sdsfree(temp); sdsfree(temp2);
 			
 			policy_sec_level |= POLICY_SECURITY_AUTH;
+			
+			/* Invoke Policy-Decision-Framework */
+			decctx_on_login(decision_ctx,decision_cfg);
 			ok_auth();
 			
 		/* ------------- HANDLING UNRECOGNIZED COMMANDS ------------ */
@@ -495,7 +547,6 @@ static void parseflags(void) {
 		caseof('T',policy_sec_level |= POLICY_SECURITY_TLS  );
 		caseof('C',policy_sec_level |= POLICY_SECURITY_CERT );
 		caseof('A',policy_sec_level |= POLICY_SECURITY_AUTH );
-		caseof('S',policy_status    |= POLICY_STATUS_SPFu   );
 	}}while(*++env);
 }
 
@@ -520,8 +571,11 @@ int main(void) {
 	server_name = get_servername();
 	client_ip = get_clientip();
 	
-	lspf_ctx = lspf_init();
-	if(lspf_init_failed(lspf_ctx)) abort();
+	decision_cfg = deccfg_new();
+	if(!decision_cfg) abort();
+	decision_ctx = decctx_new();
+	if(!decision_ctx) abort();
+	
 	if(env){
 		queuefn = sdsnew(env);
 		if(!queuefn)abort();
@@ -534,6 +588,16 @@ int main(void) {
 		queuefn2 = sdsdup(queuefn);
 		if(!queuefn2)abort();
 	}
+	
+	/*
+	 * Load Policy-Decision-Config File if any.
+	 */
+	{
+		const char* decision_file = getenv("DECISION_CFG");
+		if(decision_file)
+			if(deccfg_parse(decision_cfg,decision_file)) abort();
+	}
+	
 	line = sdsempty();
 	if(!line) abort();
 	line = sdsMakeRoomFor(line,256);
