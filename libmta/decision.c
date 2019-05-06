@@ -164,22 +164,49 @@ static int islocal(DECISION_CFG cfg, sds addr) {
 	return 0;
 }
 
+static inline void idecctx_reset(DECISION_CTX ctx) {
+	ctx->spf_mailfrom = 0;
+	ctx->from_local = 0;
+	ctx->from_remote = 0;
+}
+
+static inline int x2x_denied(DECISION_CTX ctx){
+	/*
+	 * If the user is anonymous and the address is local, Authentication is required.
+	 */
+	if(ctx->from_local && !ctx->login_user) return 530;
+	
+	/*
+	 * Otherwise, it's just, that the Mail is rejected.
+	 */
+	return 550;
+}
+
 int  decctx_mailfrom(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char* helodom, mta_sds from) {
 	struct decision_perm perm;
 	int result;
+	idecctx_reset(ctx);
+	
+	if(islocal(cfg,from)) {
+		ctx->from_local = 1;
+	} else {
+		ctx->from_remote = 1;
+	}
+	
+	/* If the other MTA (if any) is ours, PASS */
+	if(ctx->bypass_login) return 0;
+	
 	/*
 	 * Client is another MTA.
 	 */
 	if(!ctx->login_user) {
-		/* Unless the other MTA (if any) is ours, do... */
-		if(!ctx->bypass_login) {
-			if(!strcmp(cfg->mta2me.spf,"on")){
-				result = lspf_check_mailfrom(ctx->spf_ctx,ip,helodom,from);
-				ctx->spf_mailfrom = result;
-				switch(result) {
-				case LSPF_FAIL: return 550;
-				case LSPF_TEMP_ERR: return 450;
-				}
+		
+		if(!strcmp(cfg->mta2me.spf,"on")){
+			result = lspf_check_mailfrom(ctx->spf_ctx,ip,helodom,from);
+			ctx->spf_mailfrom = result;
+			switch(result) {
+			case LSPF_FAIL: return 550;
+			case LSPF_TEMP_ERR: return 450;
 			}
 		}
 		
@@ -188,22 +215,12 @@ int  decctx_mailfrom(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char
 		perm = cfg->perm_login;
 	}
 	
-	if(islocal(cfg,from)) {
-		ctx->from_local = 1;
-	} else {
-		ctx->from_remote = 1;
-	}
-	
-	if(!ctx->bypass_login) { /* Unless the other MTA (if any) is ours, do... */
-		/*
-		 * This Branch is deliberately kept empty.
-		 */
-	} else if(ctx->from_local) {
+	if(ctx->from_local) {
 		/* Make sure we can send from local. */
-		if(!(perm.local2local||perm.local2remote)) return 550;
+		if(!(perm.local2local||perm.local2remote)) return x2x_denied(ctx);
 	} else if(ctx->from_remote) {
 		/* Make sure we can send from remote. */
-		if(!(perm.remote2local||perm.remote2remote)) return 550;
+		if(!(perm.remote2local||perm.remote2remote)) return x2x_denied(ctx);
 	}
 	
 	return 0;
@@ -211,22 +228,22 @@ int  decctx_mailfrom(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char
 int  decctx_rcptto(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char* helodom, mta_sds from, mta_sds to) {
 	struct decision_perm perm;
 	int result;
+	
+	/* If the other MTA (if any) is ours, PASS */
+	if(ctx->bypass_login) return 0;
+	
 	if(ctx->login_user) {
 		perm = cfg->perm_login;
 	} else {
 		perm = cfg->perm_anon;
 	}
 	
-	if(!ctx->bypass_login) { /* Unless the other MTA (if any) is ours, do... */
-		/*
-		 * This Branch is deliberately kept empty.
-		 */
-	} else if(islocal(cfg,to)) {
-		if(ctx->from_local&&perm.local2local) return 550;
-		if(ctx->from_remote&&perm.remote2local) return 550;
+	if(islocal(cfg,to)) {
+		if(ctx->from_local&&perm.local2local) return x2x_denied(ctx);
+		if(ctx->from_remote&&perm.remote2local) return x2x_denied(ctx);
 	} else {
-		if(ctx->from_local&&perm.local2remote) return 550;
-		if(ctx->from_remote&&perm.remote2remote) return 550;
+		if(ctx->from_local&&perm.local2remote) return x2x_denied(ctx);
+		if(ctx->from_remote&&perm.remote2remote) return x2x_denied(ctx);
 	}
 	return 0;
 }
