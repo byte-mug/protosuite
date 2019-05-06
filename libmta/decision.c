@@ -7,7 +7,6 @@
  * DISCLAIMER: THE WORKS ARE WITHOUT WARRANTY.
  */
 //
-#include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include "../lib/sds_audited.h"
@@ -34,9 +33,9 @@ DECISION_CFG deccfg_new(){
 	memset(cfg,0,sizeof(*cfg));
 	/*
 	 * Default settings:
-	 *  MUA send *@local -> *@local
-	 *  MUA send *@local -> *@remote
-	 *  MTA send *@remote -> *@local
+	 *  MUA may send *@local -> *@local
+	 *  MUA may send *@local -> *@remote
+	 *  MTA may send *@remote -> *@local
 	 */
 	cfg->perm_login.local2remote = 1;
 	cfg->perm_login.local2local = 1;
@@ -245,11 +244,11 @@ int  decctx_rcptto(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char* 
 	}
 	
 	if(islocal(cfg,to)) {
-		if(ctx->from_local&&perm.local2local) return x2x_denied(ctx);
-		if(ctx->from_remote&&perm.remote2local) return x2x_denied(ctx);
+		if(ctx->from_local&&!perm.local2local) return x2x_denied(ctx);
+		if(ctx->from_remote&&!perm.remote2local) return x2x_denied(ctx);
 	} else {
-		if(ctx->from_local&&perm.local2remote) return x2x_denied(ctx);
-		if(ctx->from_remote&&perm.remote2remote) return x2x_denied(ctx);
+		if(ctx->from_local&&!perm.local2remote) return x2x_denied(ctx);
+		if(ctx->from_remote&&!perm.remote2remote) return x2x_denied(ctx);
 	}
 	return 0;
 }
