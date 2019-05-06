@@ -40,9 +40,6 @@ static const char* client_ip;
 #define POLICY_STATUS_TLS    0x004
 #define POLICY_STATUS_Tsup   0x008
 
-/* I think, we don't need this: */
-//#define M_POLICY_STATUS_KEEP POLICY_STATUS_Tsup|POLICY_STATUS_HELO|POLICY_STATUS_EHLO
-
 static int
 	policy_sec_level = 0,
 	policy_status = 0
@@ -51,7 +48,6 @@ static int
 static sds line;
 
 static sds raw_mailfrom, raw_rctpto;
-#define mailto raw_mailfrom
 
 static int file_head_flags;
 
@@ -288,16 +284,6 @@ static int check_auth_plain(sds decoded){
 	return check_auth(auth_user,auth_passwd);
 }
 
-static inline int is_authenticated(void) {
-	return (policy_sec_level&POLICY_SECURITY_AUTH);
-}
-
-#if 0
-static inline sds sdsreplace(sds old,sds neew) {
-	if(old) sdsfree(old);
-	return sdsneew;
-}
-#endif
 static inline void sdsmayfree(sds old) {
 	if(old) sdsfree(old);
 }
@@ -357,8 +343,6 @@ static void commands(void){
 			
 		/* ---------------- HANDLING MAIL COMMANDS ----------------- */
 		}else if(sdseqlower_p(line,"mail from:")){ /* MAIL FROM:<huhu@example.com> */
-			if(!is_authenticated()){ err_need_auth(); continue; }
-			
 			sdssetlen(line,moveback_n(line,sdslen(line),10));
 			sdstrim(line," \r\n\t");
 			
@@ -394,8 +378,6 @@ static void commands(void){
 			 * We will not allow "RCPT TO" before "MAIL FROM".
 			 */
 			if(!(file_head_flags&1)){ err_wantmail(); continue; }
-			
-			if(!is_authenticated()){ err_need_auth(); continue; }
 			
 			sdssetlen(line,moveback_n(line,sdslen(line),8));
 			sdstrim(line," \r\n\t");
