@@ -11,12 +11,6 @@
 typedef struct lspf_ctx_s* LSPF_CTX;
 
 enum {
-#if 0
-	/* This was previously defined. */
-	LSPF_OK,
-	LSPF_INTERNAL,
-	LSPF_REJECT,
-#endif
 	LSPF_NONE,
 	LSPF_NEUTRAL,
 	LSPF_PASS,
