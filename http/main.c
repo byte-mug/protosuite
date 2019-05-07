@@ -151,7 +151,7 @@ int main(void) {
 	parseflags();
 	server_name = getenv("HTTP_SERVER_NAME");
 	if(!server_name)
-		server_name = "server_http/0.0 (UNIX)";
+		server_name = "server_httpd/0.0 (UNIX)";
 	
 	lineup();
 	
