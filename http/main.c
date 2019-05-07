@@ -100,6 +100,15 @@ static int read_header(void) {
 	return 1;
 }
 
+static void dump_headers(void) {
+	// Date: Mon, 27 Jul 2009 12:28:53 GMT
+	// Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
+	// Content-Length: 88
+	out("Server: "); out(server_name); out(LN);
+	out("Content-Type: text/html" LN);
+	out("Connection: Closed" LN);
+}
+
 static void commands(void) {
 	for(;;) {
 		
@@ -111,7 +120,10 @@ static void commands(void) {
 		
 		if(read_header()) die_eof();
 		
-		out("HTTP/1.1 200 OK" LN LN);
+		out("HTTP/1.1 200 OK" LN);
+		dump_headers();
+		out(LN);
+		
 		out("Hello world!" LN);
 		
 		die_eof();
