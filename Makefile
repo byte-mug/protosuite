@@ -82,10 +82,21 @@ has_tls += yes
 tlsimpl += tls_lib/tls_none.o
 endif
 
-#lyc_ver = libyescrypt/yescrypt-best.o
-#lyc_ver = libyescrypt/yescrypt-simd.o
+ifeq ($(LYC),best)
+lyc_ver = libyescrypt/yescrypt-best.o
+endif
+ifeq ($(LYC),simd)
+lyc_ver = libyescrypt/yescrypt-simd.o
+endif
+ifeq ($(LYC),ref)
+lyc_ver = libyescrypt/yescrypt-ref.o
+endif
+ifeq ($(LYC),opt)
 lyc_ver = libyescrypt/yescrypt-opt.o
-#lyc_ver = libyescrypt/yescrypt-ref.o
+endif
+ifeq ($(lyc_ver),)
+lyc_ver = libyescrypt/yescrypt-opt.o
+endif
 
 libyescrypt += $(lyc_ver) libyescrypt/yescrypt-common.o libyescrypt/sha256.o
 
