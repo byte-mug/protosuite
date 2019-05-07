@@ -28,7 +28,7 @@ DECISION_CFG=/path/to/your/mta_decision.ini
 
 export TLS_CERT
 export TLS_KEY
-export PASSFILE
+export PASSWORD_DB
 export MAILDIR
 export DECISION_CFG
 
