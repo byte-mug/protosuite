@@ -34,6 +34,7 @@
 
 # Executables
 server_smtp
+server_http
 tool_pass
 tool_passdb
 
