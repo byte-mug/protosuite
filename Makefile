@@ -100,7 +100,7 @@ endif
 
 libyescrypt += $(lyc_ver) libyescrypt/yescrypt-common.o libyescrypt/sha256.o
 
-all_programs += server_smtp tool_passdb
+all_programs += server_smtp server_httpd tool_passdb
 
 all: $(all_programs)
 	true
@@ -117,6 +117,12 @@ smtpd += $(lib) $(libmta) $(libpass) $(libyescrypt) $(tlsimpl)
 
 server_smtp: $(smtpd)
 	$(CC) $(smtpd) $(libspf) $(tlslibs) -o server_smtp
+
+httpd += http/main.o
+httpd += $(lib) $(tlsimpl)
+
+server_httpd: $(httpd)
+	$(CC) $(httpd) $(tlslibs) -o server_httpd
 
 pass += pass/main.o
 pass += $(lib) $(libpass) $(libpass_legacy) $(libyescrypt)
