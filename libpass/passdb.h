@@ -10,6 +10,7 @@
 
 #include "common.h"
 
-struct password* find_password(const char* fn,const char* name);
-int append_password(const char* fn,const char* user,const char* passhash);
+struct password* passdb_find_account(const char* db,const char* name);
+int passdb_upsert_account(const char* db,const char* user,const char* passhash);
+int passdb_delete_account(const char* db,const char* user);
 

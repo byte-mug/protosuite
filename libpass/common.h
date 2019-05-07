@@ -8,8 +8,8 @@
  */
 #pragma once
 
-#include "common.h"
-
-struct password* find_password(const char* fn,const char* name);
-int append_password(const char* fn,const char* user,const char* passhash);
+struct password{
+	const char* user;
+	const char* passhash;
+};
 

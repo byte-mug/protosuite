@@ -13,6 +13,9 @@ tls_lib/%.o: tls_lib/%.c
 libpass/%.o: libpass/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
+libpassdb/%.o: libpassdb/%.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
 libmta/%.o: libmta/%.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
@@ -28,6 +31,10 @@ smtp/%.o: smtp/%.c
 lib += lib/safe_strings.o lib/sds.o lib/slam.o lib/match.o lib/base64.o lib/servername.o
 
 libpass += libpass/passfile.o
+libpass += libpass/passdb.o
+libpass += libpass/sdbm.o
+libpass += libpass/pair.o
+libpass += libpass/hash.o
 
 ######################################################
 #################### libMTA Module ###################
@@ -47,7 +54,7 @@ else
 libmta += libmta/strmail_nopcre.o
 endif
 
-#####################################################
+######################################################
 
 ifeq ($(TLS),tlse)
 has_tls += yes
@@ -82,7 +89,7 @@ lyc_ver = libyescrypt/yescrypt-opt.o
 
 libyescrypt += $(lyc_ver) libyescrypt/yescrypt-common.o libyescrypt/sha256.o
 
-all_programs += server_smtp tool_pass
+all_programs += server_smtp tool_pass tool_passdb
 
 all: $(all_programs)
 	true
@@ -105,3 +112,9 @@ pass += $(lib) $(libpass) $(libyescrypt)
 
 tool_pass: $(pass)
 	$(CC) $(pass) -o tool_pass
+
+passdb += passdb/main.o
+passdb += $(lib) $(libpass) $(libyescrypt)
+
+tool_passdb: $(passdb)
+	$(CC) $(passdb) -o tool_passdb
