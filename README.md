@@ -57,3 +57,30 @@ spf=on
 ```
 
 Also see: [mta_decision.ini](./example/mta_decision.ini)
+
+## Running HTTP server
+
+*NOTE:* the HTTP server is not production ready, and has (almost) no features. It is meant for quick TLS testing.
+
+```sh
+TLS_CERT=/path/to/your/cert.csr
+
+# The key must not be Password protected.
+TLS_KEY=/path/to/your/private_key.pem
+
+# Enable HTTPS
+HTTP_FLAGS=S
+
+export TLS_CERT
+export TLS_KEY
+export HTTP_FLAGS
+
+# You need a program (or program suite) to open a listening socket and accept
+# connections like "ucspi-tcp". We use the tcphelper suite in this example.
+#
+#    https://github.com/byte-mug/tcphelper
+
+# Note: $protosuite is the path, where the protosuite binaries are placed.
+
+tcpsrv 4 0.0.0.0 80 tcploop $protosuite/server_httpd
+```
