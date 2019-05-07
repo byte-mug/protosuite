@@ -13,6 +13,7 @@
 #include "../lib/slam.h"
 #include "tls_lib.h"
 #define TLS_AMALGAMATION 1
+#define TLS_CURVE25519 1
 #include "tlse.c"
 
 static SSL *server_ctx;
