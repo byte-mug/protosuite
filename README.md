@@ -14,7 +14,7 @@ TLS_CERT=/path/to/your/cert.csr
 TLS_KEY=/path/to/your/private_key.pem
 
 # Your password DB
-PASSFILE=/path/to/your/passwords
+PASSWORD_DB=/path/to/your/password-db
 
 # Your Incoming mail repository
 #  This must contain the following folders:

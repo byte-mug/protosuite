@@ -30,7 +30,7 @@ smtp/%.o: smtp/%.c
 
 lib += lib/safe_strings.o lib/sds.o lib/slam.o lib/match.o lib/base64.o lib/servername.o
 
-libpass += libpass/passfile.o
+libpass_legacy += libpass/passfile.o
 libpass += libpass/passdb.o
 libpass += libpass/sdbm.o
 libpass += libpass/pair.o
@@ -89,7 +89,7 @@ lyc_ver = libyescrypt/yescrypt-opt.o
 
 libyescrypt += $(lyc_ver) libyescrypt/yescrypt-common.o libyescrypt/sha256.o
 
-all_programs += server_smtp tool_pass tool_passdb
+all_programs += server_smtp tool_passdb
 
 all: $(all_programs)
 	true
@@ -108,7 +108,7 @@ server_smtp: $(smtpd)
 	$(CC) $(smtpd) $(libspf) $(tlslibs) -o server_smtp
 
 pass += pass/main.o
-pass += $(lib) $(libpass) $(libyescrypt)
+pass += $(lib) $(libpass) $(libpass_legacy) $(libyescrypt)
 
 tool_pass: $(pass)
 	$(CC) $(pass) -o tool_pass

@@ -18,7 +18,7 @@
 #include "../lib/matchsds.h"
 #include "../lib/safe_strings.h"
 #include "../lib/servername.h"
-#include "../libpass/passfile.h"
+#include "../libpass/passdb.h"
 #include "../libyescrypt/yescrypt.h"
 #include "../lib/base64.h"
 #include "../tls_lib/tls_lib.h"
@@ -26,7 +26,7 @@
 #include "../libmta/strmail.h"
 #define LN "\r\n"
 
-static const char* passwords;
+static const char* passwords_db;
 static const char* server_name;
 static const char* client_ip;
 
@@ -255,8 +255,8 @@ onError:
 
 static int check_auth(const char* user,const char* pass) {
 	struct password* p;
-	if(!passwords) return -1;
-	p = find_password(passwords,user);
+	if(!passwords_db) return -1;
+	p = passdb_find_account(passwords_db,user);
 	if(!p) return -1;
 	const char* chk = yescrypt(pass,p->passhash);
 	if(!chk) return -1;
@@ -553,7 +553,7 @@ static const char* get_clientip(void) {
 
 int main(void) {
 	parseflags();
-	passwords = getenv("PASSFILE");
+	passwords_db = getenv("PASSWORD_DB");
 	const char* env = getenv("MAILDIR");
 	server_name = get_servername();
 	client_ip = get_clientip();
