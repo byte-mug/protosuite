@@ -110,8 +110,7 @@ int slamtls_init(){
 }
 
 static const char* s2n_e2s(){
-#define SPLAIN(x) fprintf(stderr,"%s : %d\n",#x,(int)(x))
-static char buffer [25];
+	static char buffer [25];
 	switch(s2n_error_get_type(s2n_errno)){
 	case S2N_ERR_T_OK:       return "No error";
 	case S2N_ERR_T_IO:       return "Underlying I/O operation failed, check system errno";
@@ -126,25 +125,12 @@ static char buffer [25];
 	return buffer;
 	//return "????";
 }
-#define PUT(x) (fprintf(stderr,"%s\n", #x),fflush(stderr))
-#define failonX(x) if(x){ \
-	fprintf(stderr,"s2n_errno = %s\n",s2n_e2s()); fflush(stderr); \
-	return 0;\
-}
+
 int slamtls_starttls(){
 	nfd = dup(1);
 	failon(nfd<0);
 	close(0);
 	close(1);
-	
-	SPLAIN(S2N_ERR_T_OK);
-	SPLAIN(S2N_ERR_T_IO);
-	SPLAIN(S2N_ERR_T_CLOSED);
-	SPLAIN(S2N_ERR_T_BLOCKED);
-	SPLAIN(S2N_ERR_T_ALERT);
-	SPLAIN(S2N_ERR_T_PROTO);
-	SPLAIN(S2N_ERR_T_INTERNAL);
-	SPLAIN(S2N_ERR_T_USAGE);
 	
 	failon(s2n_init()<0);
 	s2n_errno = S2N_ERR_T_OK;
@@ -152,25 +138,17 @@ int slamtls_starttls(){
 	*/
 	struct s2n_config * config = s2n_config_new(); failon(!config);
 	
-	PUT(s2n_config_set_cipher_preferences(config, "default"); );
 	s2n_config_set_cipher_preferences(config, "default");
 	
-	PUT(failonX(s2n_config_add_cert_chain_and_key(config,certmmap,keymmap)<0););
-	failonX(s2n_config_add_cert_chain_and_key(config,certmmap,keymmap)<0);
+	failon(s2n_config_add_cert_chain_and_key(config,certmmap,keymmap)<0);
 	
-	PUT(client_ctx = s2n_connection_new(S2N_SERVER); failonX(!client_ctx););
-	client_ctx = s2n_connection_new(S2N_SERVER); failonX(!client_ctx);
+	client_ctx = s2n_connection_new(S2N_SERVER); failon(!client_ctx);
 	
-	PUT(s2n_connection_set_config(client_ctx, config););
 	s2n_connection_set_config(client_ctx, config);
 	
-	PUT(failonX(s2n_connection_set_fd(client_ctx, nfd) < 0););
-	failonX(s2n_connection_set_fd(client_ctx, nfd) < 0);
+	failon(s2n_connection_set_fd(client_ctx, nfd) < 0);
 	
-	PUT(failonX(s2n_negotiate(client_ctx, &blocked) < 0););
-	failonX(s2n_negotiate(client_ctx, &blocked) < 0);
-	
-	fprintf(stderr,"s2n_errno = %s\n",s2n_e2s()); fflush(stderr);
+	failon(s2n_negotiate(client_ctx, &blocked) < 0);
 	
 	slam_read = slamtls_read;
 	slam_write = slamtls_write;
