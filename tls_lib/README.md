@@ -32,8 +32,3 @@ My version mostly works, but `curl` seems to fail with:
 	`error:0D07207B:asn1 encoding routines:ASN1_get_object:header too long`
 Maybe i will manage to fix this....
 
-### Mozilla NSS
-
-The effort of implementing TLS support based on NSS failed before it even started. Sorry!
-
-<!-- https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/tools/NSS_Tools_certutil -->
