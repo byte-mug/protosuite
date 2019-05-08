@@ -67,6 +67,16 @@ tlsimpl += tls_lib/tls_openssl.o
 tlslibs += -lssl -lcrypto
 endif
 
+ifeq ($(TLS),bearssl)
+ifeq ($(BRS),)
+else
+has_tls += yes
+tlsflags += -I$(BRS)/inc
+tlsimpl += tls_lib/tls_brssl.o
+tlslibs += $(BRS)/build/libbearssl.a
+endif
+endif
+
 ifeq ($(TLS),nss)
 has_tls += yes
 tlsimpl += tls_lib/tls_nss.o
