@@ -141,7 +141,7 @@ failed:
 
 void decctx_free(DECISION_CTX ctx) {
 	if(ctx->spf_ctx) lspf_release(ctx->spf_ctx);
-	/* TODO: ... */
+	free(ctx);
 }
 
 void decctx_bypass_login(DECISION_CTX ctx,DECISION_CFG cfg){
@@ -202,9 +202,28 @@ int  decctx_mailfrom(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char
 	if(ctx->bypass_login) return 0;
 	
 	/*
-	 * Client is another MTA.
+	 * Load appropriate permissions.
 	 */
+	if(ctx->login_user) {
+		perm = cfg->perm_login;
+	} else {
+		perm = cfg->perm_anon;
+	}
+	
+	if(ctx->from_local) {
+		/* Make sure we can send from local. */
+		if(!(perm.local2local||perm.local2remote)) return x2x_denied(ctx);
+	} else if(ctx->from_remote) {
+		/* Make sure we can send from remote. */
+		if(!(perm.remote2local||perm.remote2remote)) return x2x_denied(ctx);
+	}
+	
+	
 	if(!ctx->login_user) {
+		/*
+		 * Client is another MTA.
+		 * Apply approriate policies.
+		**/
 		
 		if(str0eq(cfg->mta2me.spf,"on")){
 			result = lspf_check_mailfrom(ctx->spf_ctx,ip,helodom,from);
@@ -214,18 +233,6 @@ int  decctx_mailfrom(DECISION_CTX ctx,DECISION_CFG cfg,const char* ip,const char
 			case LSPF_TEMP_ERR: return 450;
 			}
 		}
-		
-		perm = cfg->perm_anon;
-	} else {
-		perm = cfg->perm_login;
-	}
-	
-	if(ctx->from_local) {
-		/* Make sure we can send from local. */
-		if(!(perm.local2local||perm.local2remote)) return x2x_denied(ctx);
-	} else if(ctx->from_remote) {
-		/* Make sure we can send from remote. */
-		if(!(perm.remote2local||perm.remote2remote)) return x2x_denied(ctx);
 	}
 	
 	return 0;
