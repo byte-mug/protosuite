@@ -67,6 +67,12 @@ tlsimpl += tls_lib/tls_openssl.o
 tlslibs += -lssl -lcrypto
 endif
 
+ifeq ($(TLS),nss)
+has_tls += yes
+tlsimpl += tls_lib/tls_nss.o
+tlslibs += -lnss3
+endif
+
 ifeq ($(TLS),s2n)
 ifeq ($(S2N),)
 else

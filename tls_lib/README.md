@@ -24,4 +24,8 @@ tlsimpl += tls_lib/tls_s2n.o
 tlslibs += $(S2N)/lib/libs2n.a -lcrypto -lpthread
 ```
 
+### Mozilla NSS
+
+The effort of implementing TLS support based on NSS failed before it even started. Sorry!
+
 <!-- https://developer.mozilla.org/en-US/docs/Mozilla/Projects/NSS/tools/NSS_Tools_certutil -->
